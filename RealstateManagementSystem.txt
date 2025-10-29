@@ -1,0 +1,343 @@
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <limits>
+#include <algorithm>
+#include <string>
+
+using namespace std;
+
+// Simple hash function (djb2 algorithm) for password hashing
+unsigned long djb2(const string& str) {
+    unsigned long hash = 5381;
+    for (char c : str) {
+        hash = ((hash << 5) + hash) + static_cast<unsigned char>(c);
+    }
+    return hash;
+}
+
+// User class to manage user details
+class User {
+private:
+    string username;
+    string hash; // Stored hash of username + password
+    string role; // "admin" or "user"
+
+public:
+    User(string u, string h, string r) : username(u), hash(h), role(r) {}
+
+    string getUsername() const { return username; }
+    string getRole() const { return role; }
+
+    // Check if the provided password matches the stored hash
+    bool checkPassword(string password) const {
+        string toHash = username + password;
+        unsigned long computedHash = djb2(toHash);
+        return std::to_string(computedHash) == hash;
+    }
+
+    // Save user data to file
+    void saveToFile(ofstream& outFile) const {
+        outFile << username << " " << role << " " << hash << endl;
+    }
+};
+
+// Property class with an owner field
+class Property {
+private:
+    int id;
+    string type, location, status, owner;
+    double price;
+
+public:
+    // Register a new property with user input
+    void registerProperty(const vector<Property>& properties) {
+        cout << "Enter Property ID: ";
+        cin >> id;
+        // Ensure unique ID
+        while (any_of(properties.begin(), properties.end(), [this](const Property& p) { return p.id == id; })) {
+            cout << "ID already exists. Enter a unique ID: ";
+            cin >> id;
+        }
+        cout << "Enter Property Type (House/Apartment/Land): ";
+        cin >> type;
+        cin.ignore(); // Clear buffer for getline
+        cout << "Enter Location: ";
+        getline(cin, location);
+        cout << "Enter Price: ";
+        cin >> price;
+        while (price <= 0) {
+            cout << "Price must be positive. Enter again: ";
+            cin >> price;
+        }
+        cout << "Enter Status (Available/Sold/Rented): ";
+        cin >> status;
+        // Validate status
+        while (status != "Available" && status != "Sold" && status != "Rented") {
+            cout << "Invalid status. Enter Available, Sold, or Rented: ";
+            cin >> status;
+        }
+    }
+
+    // Display property details
+    void displayProperty() const {
+        cout << "ID: " << id << " | Type: " << type << " | Location: " << location
+             << " | Price: " << price << " | Status: " << status << " | Owner: " << owner << endl;
+    }
+
+    int getId() const { return id; }
+    string getLocation() const { return location; }
+    string getOwner() const { return owner; }
+    void setOwner(string u) { owner = u; }
+
+    // Save property to file
+    void saveToFile(ofstream& outFile) const {
+        outFile << id << " " << type << " " << price << " " << status << " " << owner << " " << location << endl;
+    }
+
+    // Load property from file
+    bool loadFromFile(ifstream& inFile) {
+        if (!(inFile >> id >> type >> price >> status >> owner)) {
+            return false;
+        }
+        inFile.ignore(); // Ignore space after owner
+        getline(inFile, location);
+        return true;
+    }
+};
+
+// RealEstateSystem class with user and property management
+class RealEstateSystem {
+private:
+    vector<Property> properties;
+    vector<User> users;
+    string currentUser;  // Username of the logged-in user
+    string currentRole;  // Role of the logged-in user
+
+public:
+    // Load users from file or create a default admin
+    void loadUsers() {
+        ifstream inFile("users.txt");
+        if (!inFile) {
+            // Create default admin if file doesn't exist
+ofstream outFile("users.txt");
+            string defaultPassword = "admin123";
+            string toHash = "admin" + defaultPassword;
+            unsigned long hashValue = djb2(toHash);
+            string hashStr = std::to_string(hashValue);
+            outFile << "admin admin " << hashStr << endl;
+            users.push_back(User("admin", hashStr, "admin"));
+        } else {
+            string username, role, hash;
+            while (inFile >> username >> role >> hash) {
+                users.push_back(User(username, hash, role));
+            }
+        }
+    }
+
+    // Save users to file
+    void saveUsers() {
+        ofstream outFile("users.txt");
+        for (const auto& user : users) {
+            user.saveToFile(outFile);
+        }
+    }
+
+    // Register a new user
+    bool registerUser() {
+        string username, password;
+        cout << "Enter new username: ";
+        cin >> username;
+        // Check if username is unique
+        for (const auto& user : users) {
+            if (user.getUsername() == username) {
+                cout << "Username already exists.\n";
+                return false;
+            }
+        }
+        cout << "Enter password: ";
+        cin >> password;
+        string toHash = username + password;
+        unsigned long hashValue = djb2(toHash);
+        string hashStr = std::to_string(hashValue);
+        users.push_back(User(username, hashStr, "user"));
+        saveUsers();
+        cout << "User registered successfully!\n";
+        return true;
+    }
+
+    // Login an existing user
+    bool login() {
+        string username, password;
+        cout << "Enter username: ";
+        cin >> username;
+        cout << "Enter password: ";
+        cin >> password;
+        for (const auto& user : users) {
+            if (user.getUsername() == username && user.checkPassword(password)) {
+                currentUser = username;
+                currentRole = user.getRole();
+                cout << "Login successful! Welcome, " << username << " (" << currentRole << ").\n";
+                return true;
+            }
+        }
+        cout << "Invalid username or password.\n";
+        return false;
+    }
+
+    // Add a new property
+    void addProperty() {
+        Property prop;
+        prop.registerProperty(properties);
+        prop.setOwner(currentUser);
+        properties.push_back(prop);
+        saveProperties();
+        cout << "Property added successfully!\n";
+    }
+
+    // Display all properties
+    void displayAllProperties() const {
+        if (properties.empty()) {
+            cout << "No properties available.\n";
+            return;
+        }
+        for (const auto& prop : properties) {
+            prop.displayProperty();
+        }
+    }
+
+    // Search property by ID
+    void searchPropertyById() const {
+        int id;
+        cout << "Enter Property ID to search: ";
+        cin >> id;
+        for (const auto& prop : properties) {
+            if (prop.getId() == id) {
+                prop.displayProperty();
+                return;
+            }
+        }
+        cout << "Property not found!\n";
+    }
+
+    // Search property by location
+    void searchPropertyByLocation() const {
+        string loc;
+        cout << "Enter Location to search: ";
+        cin.ignore();
+        getline(cin, loc);
+        bool found = false;
+        for (const auto& prop : properties) {
+            if (prop.getLocation() == loc) {
+                prop.displayProperty();
+                found = true;
+            }
+        }
+        if (!found) cout << "No properties found in this location!\n";
+    }
+
+    // Update an existing property (owner or admin only)
+    void updateProperty() {
+        int id;
+        cout << "Enter Property ID to update: ";
+        cin >> id;
+        for (auto& prop : properties) {
+            if (prop.getId() == id) {
+
+if (prop.getOwner() == currentUser || currentRole == "admin") {
+                    prop.registerProperty(properties);
+                    saveProperties();
+                    cout << "Property updated successfully!\n";
+                } else {
+                    cout << "You don't have permission to update this property.\n";
+                }
+                return;
+            }
+        }
+        cout << "Property not found!\n";
+    }
+
+    // Delete a property (owner or admin only)
+    void deleteProperty() {
+        int id;
+        cout << "Enter Property ID to delete: ";
+        cin >> id;
+        for (auto it = properties.begin(); it != properties.end(); ++it) {
+            if (it->getId() == id) {
+                if (it->getOwner() == currentUser || currentRole == "admin") {
+                    properties.erase(it);
+                    saveProperties();
+                    cout << "Property deleted successfully!\n";
+                } else {
+                    cout << "You don't have permission to delete this property.\n";
+                }
+                return;
+            }
+        }
+        cout << "Property not found!\n";
+    }
+
+    // Save properties to file
+    void saveProperties() {
+        ofstream outFile("properties.txt");
+        for (const auto& prop : properties) {
+            prop.saveToFile(outFile);
+        }
+    }
+
+    // Load properties from file
+    void loadProperties() {
+        ifstream inFile("properties.txt");
+        Property prop;
+        while (prop.loadFromFile(inFile)) {
+            properties.push_back(prop);
+        }
+    }
+};
+
+// Main function with login/registration and property management
+int main() {
+    RealEstateSystem system;
+    system.loadUsers();
+    system.loadProperties();
+
+    char choice;
+    cout << "Do you want to (l)ogin or (r)egister? ";
+    cin >> choice;
+
+    if (choice == 'r') {
+        system.registerUser();
+        cout << "Please login with your new account.\n";
+    }
+
+    while (!system.login()) {
+        cout << "Please try again.\n";
+    }
+
+    // Property management menu
+    int menuChoice;
+    do {
+        cout << "\n1. Add Property\n2. Display All Properties\n3. Search Property by ID\n"
+             << "4. Search Property by Location\n5. Update Property\n6. Delete Property\n7. Exit\n"
+             << "Enter choice: ";
+        if (!(cin >> menuChoice)) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "Invalid input! Please enter a number.\n";
+            continue;
+        }
+        switch (menuChoice) {
+            case 1: system.addProperty(); break;
+            case 2: system.displayAllProperties(); break;
+            case 3: system.searchPropertyById(); break;
+            case 4: system.searchPropertyByLocation(); break;
+            case 5: system.updateProperty(); break;
+            case 6: system.deleteProperty(); break;
+            case 7: cout << "Exiting...\n"; break;
+            default: cout << "Invalid choice!\n";
+        }
+    } while (menuChoice != 7);
+
+    return 0;
+
+}

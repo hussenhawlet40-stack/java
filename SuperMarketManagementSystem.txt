@@ -1,0 +1,746 @@
+#include <iostream>
+#include <string>
+#include <map>
+#include <iomanip>
+#include <ctime>
+#include <vector>
+#include <limits>
+#include <algorithm>
+#include <direct.h> // for _mkdir() on Windows
+#include <fstream>
+#include <iostream>
+using namespace std;
+
+// Password management structure
+struct Account {
+    string username;
+    string password;
+    bool isAdmin;
+};
+
+// Global accounts storage
+vector<Account> accounts = {
+    {"admin", "admin123", true}  // Default admin account
+};
+
+// Function prototypes
+bool authenticate(const string& username, const string& password, bool& isAdmin);
+void changePassword(const string& username);
+void createNewAccount(bool isAdmin);
+
+struct Product {
+    string name;
+    string brand;
+    string category;
+    double price;
+    int quantity;
+    string unit;
+    string dateTimeAdded;
+    Product* next;
+    Product* prev;
+};
+
+string getCurrentDateTime() {
+    time_t now = time(0);
+    char buf[80];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    return string(buf);
+}
+
+class SupermarketSystem {
+private:
+    Product* head;
+    Product* tail;
+    int productCount;
+
+public:
+    SupermarketSystem() : head(nullptr), tail(nullptr), productCount(0) {}
+
+    ~SupermarketSystem() {
+        Product* current = head;
+        while (current != nullptr) {
+            Product* next = current->next;
+            delete current;
+            current = next;
+        }
+    }
+
+    void addProduct(string name, string brand, string category, double price, int quantity, string unit) {
+        string dateTime = getCurrentDateTime();
+
+        Product* newProduct = new Product{name, brand, category, price, quantity, unit, dateTime, nullptr, nullptr};
+
+        if (head == nullptr) {
+            head = tail = newProduct;
+        } else if (head->category > category  (head->category == category && head->name > name)) {
+            newProduct->next = head;
+            head->prev = newProduct;
+            head = newProduct;
+        } else {
+            Product* current = head;
+            while (current->next != nullptr &&
+                  (current->next->category < category 
+                  (current->next->category == category && current->next->name < name))) {
+                current = current->next;
+            }
+
+            newProduct->next = current->next;
+            newProduct->prev = current;
+            if (current->next != nullptr) {
+                current->next->prev = newProduct;
+            } else {
+                tail = newProduct;
+            }
+            current->next = newProduct;
+        }
+
+        productCount++;
+        cout << "Product added successfully!\n";
+    }
+
+    void displayProducts() {
+        if (head == nullptr) {
+            cout << "No products in the system.\n";
+            return;
+        }
+
+Deleted Account, [5/27/2025 3:25 PM]
+cout << "\nSupermarket Inventory (Grouped by Category)\n";
+        cout << "------------------------------------------------------------------------------------------------\n";
+        cout << left
+             << setw(20) << "Name"
+             << setw(15) << "Brand"
+             << setw(15) << "Category"
+             << setw(10) << "Price"
+             << setw(8)  << "Qty"
+             << setw(10) << "Unit"
+             << "Date Added\n";
+        cout << "------------------------------------------------------------------------------------------------\n";
+
+        Product* temp = head;
+        while (temp != nullptr) {
+            cout << left
+                 << setw(20) << temp->name
+                 << setw(15) << temp->brand
+                 << setw(15) << temp->category
+                 << setw(10) << fixed << setprecision(2) << temp->price
+                 << setw(8)  << temp->quantity
+                 << setw(10) << temp->unit
+                 << temp->dateTimeAdded << "\n";
+            temp = temp->next;
+        }
+        cout << "------------------------------------------------------------------------------------------------\n";
+    }
+
+    vector<Product*> searchByName(const string& name) {
+        vector<Product*> results;
+        Product* temp = head;
+        while (temp != nullptr) {
+            if (temp->name == name) {
+                results.push_back(temp);
+            }
+            temp = temp->next;
+        }
+        return results;
+    }
+
+    void searchByNameWithBrand(const string& name) {
+        vector<Product*> products = searchByName(name);
+
+        if (products.empty()) {
+            cout << "No products found with name: " << name << "\n";
+            return;
+        }
+
+        if (products.size() == 1) {
+            displayProductDetails(products[0]);
+            return;
+        }
+
+        cout << "\nMultiple products found with name: " << name << "\n";
+        cout << "Please select which brand you're looking for:\n";
+        for (size_t i = 0; i < products.size(); i++) {
+            cout << i+1 << ". " << products[i]->brand << " (" << products[i]->category << ") - $"
+                 << fixed << setprecision(2) << products[i]->price << "\n";
+        }
+
+        int choice;
+        cout << "Enter your choice (1-" << products.size() << "): ";
+        cin >> choice;
+
+        if (choice > 0 && choice <= static_cast<int>(products.size())) {
+            displayProductDetails(products[choice-1]);
+        } else {
+            cout << "Invalid choice.\n";
+        }
+    }
+
+    void displayProductDetails(Product* product) {
+        cout << "\nProduct Details:\n";
+        cout << "----------------------------\n";
+        cout << "Name: " << product->name << "\n";
+        cout << "Brand: " << product->brand << "\n";
+        cout << "Category: " << product->category << "\n";
+        cout << "Price: $" << fixed << setprecision(2) << product->price << "\n";
+        cout << "Quantity: " << product->quantity << " " << product->unit << "\n";
+        cout << "Date Added: " << product->dateTimeAdded << "\n";
+        cout << "----------------------------\n";
+    }
+
+    void searchByCategory(const string& category) {
+        Product* temp = head;
+        bool found = false;
+
+        cout << "\nProducts in Category: " << category << "\n";
+        cout << "------------------------------------------------------------------------------------------------\n";
+        cout << left
+             << setw(20) << "Name"
+             << setw(15) << "Brand"
+             << setw(15) << "Category"
+             << setw(10) << "Price"
+             << setw(8)  << "Qty"
+             << setw(10) << "Unit"
+             << "Date Added\n";
+        cout << "------------------------------------------------------------------------------------------------\n";
+
+while (temp != nullptr) {
+            if (temp->category == category) {
+                found = true;
+                cout << left
+                     << setw(20) << temp->name
+                     << setw(15) << temp->brand
+                     << setw(15) << temp->category
+                     << setw(10) << fixed << setprecision(2) << temp->price
+                     << setw(8)  << temp->quantity
+                     << setw(10) << temp->unit
+                     << temp->dateTimeAdded << "\n";
+            }
+            temp = temp->next;
+        }
+
+        if (!found) {
+            cout << "No products found in this category.\n";
+        }
+
+        cout << "------------------------------------------------------------------------------------------------\n";
+    }
+
+    void updateQuantity(Product* product, int newQuantity) {
+        if (product != nullptr) {
+            product->quantity = newQuantity;
+            cout << "Quantity updated successfully!\n";
+        } else {
+            cout << "Product not found!\n";
+        }
+    }
+
+    void deleteProduct(Product* product) {
+        if (head == nullptr  product == nullptr) {
+            cout << "Product not found!\n";
+            return;
+        }
+
+        if (product->prev != nullptr) {
+            product->prev->next = product->next;
+        } else {
+            head = product->next;
+        }
+
+        if (product->next != nullptr) {
+            product->next->prev = product->prev;
+        } else {
+            tail = product->prev;
+        }
+
+        delete product;
+        productCount--;
+        cout << "Product deleted successfully!\n";
+    }
+
+    void displayLowStock() {
+        if (head == nullptr) {
+            cout << "No products in the system.\n";
+            return;
+        }
+
+        cout << "\nLow Stock Products (Quantity < 5)\n";
+        cout << "------------------------------------------------------------------------------------------------\n";
+        cout << left
+             << setw(20) << "Name"
+             << setw(15) << "Brand"
+             << setw(15) << "Category"
+             << setw(10) << "Price"
+             << setw(8)  << "Qty"
+             << setw(10) << "Unit"
+             << "Date Added\n";
+        cout << "------------------------------------------------------------------------------------------------\n";
+
+        Product* temp = head;
+        bool found = false;
+
+        while (temp != nullptr) {
+            if (temp->quantity < 5) {
+                found = true;
+                cout << left
+                     << setw(20) << temp->name
+                     << setw(15) << temp->brand
+                     << setw(15) << temp->category
+                     << setw(10) << fixed << setprecision(2) << temp->price
+                     << setw(8)  << temp->quantity
+                     << setw(10) << temp->unit
+                     << temp->dateTimeAdded << "\n";
+            }
+            temp = temp->next;
+        }
+
+        if (!found) {
+            cout << "No low stock products found.\n";
+        }
+        cout << "------------------------------------------------------------------------------------------------\n";
+    }
+};
+
+struct CartItem {
+    Product* product;
+    int quantity;
+};
+
+class User {
+public:
+    string username;
+    vector<CartItem> cart;
+
+    User(const string& uname) : username(uname) {}
+
+    void addToCart(Product* product, int quantity) {
+        if (product == nullptr) {
+            cout << "Product not found.\n";
+            return;
+        }
+        if (quantity > product->quantity) {
+            cout << "Insufficient stock. Available quantity: " << product->quantity << "\n";
+            return;
+        }
+        for (auto& item : cart) {
+            if (item.product == product) {
+                item.quantity += quantity;
+                cout << quantity << " more added to cart.\n";
+                return;
+            }
+        }
+        cart.push_back({product, quantity});
+        cout << quantity << " added to cart.\n";
+    }
+
+    void viewCart() {
+        if (cart.empty()) {
+            cout << "Your cart is e
+mpty.\n";
+            return;
+        }
+        cout << "\nYour Cart:\n";
+        cout << left << setw(20) << "Name"
+             << setw(15) << "Brand"
+             << setw(10) << "Price"
+             << setw(8) << "Qty"
+             << setw(12) << "Total\n";
+        cout << "------------------------------------------------------------\n";
+
+        double totalAmount = 0.0;
+        for (const auto& item : cart) {
+            double itemTotal = item.product->price * item.quantity;
+            totalAmount += itemTotal;
+            cout << left << setw(20) << item.product->name
+                 << setw(15) << item.product->brand
+                 << setw(10) << fixed << setprecision(2) << item.product->price
+                 << setw(8) << item.quantity
+                 << setw(12) << itemTotal << "\n";
+        }
+        cout << "------------------------------------------------------------\n";
+        cout << "Total Amount: " << fixed << setprecision(2) << totalAmount << "\n";
+    }
+
+    void checkout(SupermarketSystem& supermarket) {
+        if (cart.empty()) {
+            cout << "Your cart is empty. Nothing to checkout.\n";
+            return;
+        }
+        for (const auto& item : cart) {
+            if (item.quantity > item.product->quantity) {
+                cout << "Not enough stock for product " << item.product->name << ". Checkout aborted.\n";
+                return;
+            }
+        }
+        for (const auto& item : cart) {
+            supermarket.updateQuantity(item.product, item.product->quantity - item.quantity);
+        }
+        cout << "Checkout successful! Thank you for your purchase, " << username << ".\n";
+        cart.clear();
+    }
+};
+
+// Authentication functions
+bool authenticate(const string& username, const string& password, bool& isAdmin) {
+    for (const auto& account : accounts) {
+        if (account.username == username && account.password == password) {
+            isAdmin = account.isAdmin;
+            return true;
+        }
+    }
+    return false;
+}
+
+void changePassword(const string& username) {
+    string currentPassword, newPassword, confirmPassword;
+
+    cout << "Enter current password: ";
+    cin >> currentPassword;
+
+    // Find the account
+    for (auto& account : accounts) {
+        if (account.username == username && account.password == currentPassword) {
+            cout << "Enter new password: ";
+            cin >> newPassword;
+            cout << "Confirm new password: ";
+            cin >> confirmPassword;
+
+            if (newPassword == confirmPassword) {
+                account.password = newPassword;
+                cout << "Password changed successfully!\n";
+            } else {
+                cout << "Passwords don't match. Password not changed.\n";
+            }
+            return;
+        }
+    }
+
+    cout << "Incorrect current password.\n";
+}
+
+void createNewAccount(bool isAdmin) {
+    string username, password, confirmPassword;
+
+    cout << "Enter new username: ";
+    cin >> username;
+
+    // Check if username exists
+    for (const auto& account : accounts) {
+        if (account.username == username) {
+            cout << "Username already exists.\n";
+            return;
+        }
+    }
+
+    cout << "Enter password: ";
+    cin >> password;
+    cout << "Confirm password: ";
+    cin >> confirmPassword;
+
+    if (password != confirmPassword) {
+        cout << "Passwords don't match. Account not created.\n";
+        return;
+    }
+
+    accounts.push_back({username, password, isAdmin});
+    cout << "Account created successfully!\n";
+}
+
+// Menu functions
+void displayAdminMenu() {
+    cout << "\nSupermarket Management System - Admin\n";
+    cout << "1. Add Product\n";
+    cout << "2. Display All Products\n";
+    cout << "3. Search Product by Name\n";
+    cout << "4. Search Products by Category\n";
+    cout << "5. Update Product Quantity\n";
+    cout << "6. Delete Product\n";
+    cout << "7. Display Low Stock Products\n";
+    cout << "8. Change Password\n";
+    cout << "9. Create New Admin Account\n";
+    cout << "10. Logout\n";
+    cout << "Enter your choice: ";
+}
+
+
+void displayUserMenu(const string& username) {
+    cout << "\nUser Menu - " << username << "\n";
+    cout << "1. View All Products\n";
+    cout << "2. Add Product to Cart\n";
+    cout << "3. View Cart\n";
+    cout << "4. Checkout\n";
+    cout << "5. Change Password\n";
+    cout << "6. Logout\n";
+    cout << "Enter choice: ";
+}
+
+void userMenu(SupermarketSystem& supermarket, User& user) {
+    int choice;
+    int quantity;
+
+    while (true) {
+        displayUserMenu(user.username);
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            supermarket.displayProducts();
+            break;
+        case 2: {
+            cout << "Enter Product Name to add to cart: ";
+            string name;
+            cin.ignore();
+            getline(cin, name);
+            supermarket.searchByNameWithBrand(name);
+
+            vector<Product*> products = supermarket.searchByName(name);
+            if (products.empty()) break;
+
+            if (products.size() > 1) {
+                cout << "Enter the number of the product you want to add: ";
+                int productChoice;
+                cin >> productChoice;
+                if (productChoice < 1  productChoice > static_cast<int>(products.size())) {
+                    cout << "Invalid choice.\n";
+                    break;
+                }
+                cout << "Enter quantity: ";
+                cin >> quantity;
+                user.addToCart(products[productChoice-1], quantity);
+            } else {
+                cout << "Enter quantity: ";
+                cin >> quantity;
+                user.addToCart(products[0], quantity);
+            }
+            break;
+        }
+        case 3:
+            user.viewCart();
+            break;
+        case 4:
+            user.checkout(supermarket);
+            break;
+        case 5:
+            changePassword(user.username);
+            break;
+        case 6:
+            cout << "Logging out...\n";
+            return;
+        default:
+            cout << "Invalid choice! Try again.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+}
+
+void adminMenu(SupermarketSystem& supermarket, const string& username) {
+    int choice;
+    string name, brand, category, unit;
+    double price;
+    int quantity;
+
+    while (true) {
+        displayAdminMenu();
+        cin >> choice;
+        cin.ignore(); // Clear newline
+
+        switch (choice) {
+        case 1:
+            cout << "Enter product name: ";
+            getline(cin, name);
+            cout << "Enter brand: ";
+            getline(cin, brand);
+            cout << "Enter category: ";
+            getline(cin, category);
+            cout << "Enter price: ";
+            cin >> price;
+            cout << "Enter quantity: ";
+            cin >> quantity;
+            cin.ignore();
+            cout << "Enter unit (e.g. kg, pcs): ";
+            getline(cin, unit);
+            supermarket.addProduct(name, brand, category, price, quantity, unit);
+            break;
+
+        case 2:
+            supermarket.displayProducts();
+            break;
+
+        case 3: {
+            cout << "Enter product name to search: ";
+            string name;
+            getline(cin, name);
+            supermarket.searchByNameWithBrand(name);
+            break;
+        }
+
+        case 4:
+            cout << "Enter category to search: ";
+            getline(cin, category);
+            supermarket.searchByCategory(category);
+            break;
+
+        case 5: {
+            cout << "Enter product name to update quantity: ";
+            string name;
+            getline(cin, name);
+            vector<Product*> products = supermarket.searchByName(name);
+
+            if (products.empty()) {
+                cout << "Product not found.\n";
+                break;
+            }
+if (products.size() > 1) {
+                cout << "Multiple products found:\n";
+                for (size_t i = 0; i < products.size(); i++) {
+                    cout << i+1 << ". " << products[i]->brand << " (" << products[i]->category << ")\n";
+                }
+                cout << "Enter which product to update: ";
+                int productChoice;
+                cin >> productChoice;
+                cin.ignore();
+                if (productChoice < 1  productChoice > static_cast<int>(products.size())) {
+                    cout << "Invalid choice.\n";
+                    break;
+                }
+                cout << "Enter new quantity: ";
+                cin >> quantity;
+                cin.ignore();
+                supermarket.updateQuantity(products[productChoice-1], quantity);
+            } else {
+                cout << "Enter new quantity: ";
+                cin >> quantity;
+                cin.ignore();
+                supermarket.updateQuantity(products[0], quantity);
+            }
+            break;
+        }
+
+        case 6: {
+            cout << "Enter product name to delete: ";
+            string name;
+            getline(cin, name);
+            vector<Product*> products = supermarket.searchByName(name);
+
+            if (products.empty()) {
+                cout << "Product not found.\n";
+                break;
+            }
+
+            if (products.size() > 1) {
+                cout << "Multiple products found:\n";
+                for (size_t i = 0; i < products.size(); i++) {
+                    cout << i+1 << ". " << products[i]->brand << " (" << products[i]->category << ")\n";
+                }
+                cout << "Enter which product to delete: ";
+                int productChoice;
+                cin >> productChoice;
+                cin.ignore();
+                if (productChoice < 1  productChoice > static_cast<int>(products.size())) {
+                    cout << "Invalid choice.\n";
+                    break;
+                }
+                supermarket.deleteProduct(products[productChoice-1]);
+            } else {
+                supermarket.deleteProduct(products[0]);
+            }
+            break;
+        }
+
+        case 7:
+            supermarket.displayLowStock();
+            break;
+
+        case 8:
+            changePassword(username);
+            break;
+
+        case 9:
+            createNewAccount(true);
+            break;
+
+        case 10:
+            cout << "Exiting Admin menu...\n";
+            return;
+
+        default:
+            cout << "Invalid choice! Try again.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+}
+
+int main() {
+    // createDirectories();
+    SupermarketSystem supermarket;
+
+    while (true) {
+        cout << "\nWelcome to Supermarket System\n";
+        cout << "1. Admin Login\n";
+        cout << "2. User Login\n";
+        cout << "3. Create New User Account\n";
+        cout << "4. Exit\n";
+        cout << "Enter your choice: ";
+        int mainChoice;
+        cin >> mainChoice;
+
+        if (mainChoice == 1) {
+            string username, password;
+            bool isAdmin;
+
+            cout << "Admin Login\n";
+            cout << "Username: ";
+            cin >> username;
+            cout << "Password: ";
+            cin >> password;
+
+            if (authenticate(username, password, isAdmin)) {
+                if (isAdmin) {
+                    cout << "Login successful!\n";
+                    adminMenu(supermarket, username);
+                } else {
+                    cout << "This is not an admin account.\n";
+                }
+            } else {
+                cout << "Invalid username or password.\n";
+            }
+        }
+        else if (mainChoice == 2) {
+            string username, password;
+            bool isAdmin;
+
+            cout << "User Login\n";
+            cout << "Username: ";
+            cin >> username;
+            cout << "Password: ";
+            cin >> password;
+
+if (authenticate(username, password, isAdmin)) {
+                if (!isAdmin) {
+                    cout << "Login successful!\n";
+                    User user(username);
+                    userMenu(supermarket, user);
+                } else {
+                    cout << "Admin accounts must login through admin menu.\n";
+                }
+            } else {
+                cout << "Invalid username or password.\n";
+            }
+        }
+        else if (mainChoice == 3) {
+            createNewAccount(false);
+        }
+        else if (mainChoice == 4) {
+            cout << "Exiting system. Goodbye!\n";
+            break;
+        }
+        else {
+            cout << "Invalid choice! Try again.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+
+    return 0;
+}
